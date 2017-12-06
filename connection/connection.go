@@ -23,6 +23,8 @@ var (
 	// ErrRegisterTimeout is returned if a registered response is not recieved from the TV
 	// before a timeout
 	ErrRegisterTimeout = errors.New("Timeout waiting for registered response")
+	// ErrFailResponse is returned when the TV returns a fail response to a request
+	ErrFailResponse = errors.New("TV returned fail response to request")
 )
 
 // Connection represents a web socket connection to the TV
@@ -108,6 +110,49 @@ func (c *Connection) Register(clientKey string) (string, error) {
 	}
 }
 
+// Request makes a request to the TV to perform an action
+func (c *Connection) Request(uri string) error {
+	// Create the request
+	requestID := c.getID()
+	request := request{
+		ID:   requestID,
+		Type: reqTypeRequest,
+		URI:  uri,
+	}
+
+	// Marshal the request
+	message, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	// Create the channel to recieve the response
+	respChan := c.addRespChannel(requestID)
+	defer c.removeRespChan(requestID)
+
+	// Send the message to the websocket
+	err = c.conn.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		return err
+	}
+
+	// Wait for the response
+	resp := <-respChan
+	if resp.Error != "" {
+		return errors.New(resp.Error)
+	} else if !resp.Payload.(responsePayload).ReturnValue {
+		return ErrFailResponse
+	}
+
+	return nil
+}
+
+// Close closes the connection to the TV
+func (c *Connection) Close() error {
+	*c.connOpen = false
+	return c.conn.Close()
+}
+
 func (c *Connection) addRespChannel(reqID int) chan response {
 	respChan := make(chan response)
 	c.respChans[reqID] = respChan
@@ -141,6 +186,14 @@ func (c *Connection) respWorker() {
 			val <- resp
 		}
 	}
+}
+
+func (c *Connection) getID() int {
+	c.idLock.Lock()
+	defer c.idLock.Unlock()
+
+	c.lastRequestID++
+	return c.lastRequestID
 }
 
 func unmarshalResponse(message []byte) (response, error) {
@@ -177,14 +230,6 @@ func unmarshalResponse(message []byte) (response, error) {
 	}
 
 	return response{}, errUnknownResponseType
-}
-
-func (c *Connection) getID() int {
-	c.idLock.Lock()
-	defer c.idLock.Unlock()
-
-	c.lastRequestID++
-	return c.lastRequestID
 }
 
 func getPermissions() []string {

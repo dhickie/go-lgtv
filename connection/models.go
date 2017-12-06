@@ -35,14 +35,6 @@ type response struct {
 	Payload interface{} `json:"payload"`
 }
 
-// Temporary structure used to determine the type of response before unmarshalling
-// the correct model
-type tempResponse struct {
-	ID    int    `json:"id"`
-	Type  string `json:"type"`
-	Error string `json:"error"`
-}
-
 // Represents an payload sent with a request to register with the Web OS
 type registerReqPayload struct {
 	PairingType string   `json:"pairingType"`
