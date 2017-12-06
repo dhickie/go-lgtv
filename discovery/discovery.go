@@ -8,14 +8,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dhickie/go-lgtv/control"
 	xmlutil "github.com/dhickie/go-lgtv/util/xml"
 )
 
-const openPort = 1042
+const openPort = 1426
 
 var (
 	// ErrNoTVFound indicates that no TV could be found
@@ -36,55 +35,30 @@ func Discover(gatewayIP string) (control.LgTv, error) {
 		return control.LgTv{}, err
 	}
 
-	// Iterate over all possible local IP addresses (based on a single gateway setup)
-	ips := make([]net.IP, 256)
-	for i := range ips {
-		ips[i] = net.IP{gwIP[0], gwIP[1], gwIP[2], byte(i)}
-	}
-
-	wg := sync.WaitGroup{}
-	results := make([]bool, 256)
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		startIndex := i * 32
-		endIndex := (i + 1) * 32
-		go pingWorker(ips[startIndex:endIndex], results[startIndex:endIndex], &wg)
-	}
-	wg.Wait()
-
-	for i, v := range results {
-		if v {
-			gwIP[3] = byte(i)
-			return control.NewTV(gwIP, ""), nil
+	// Iterate over all possible local IP addresses (based on a single gateway setup
+	for i := 0; i < 256; i++ {
+		gwIP[3] = byte(i)
+		found, _ := pingIP(gwIP)
+		if found {
+			return control.NewTV(gwIP), nil
 		}
 	}
 
 	return control.LgTv{}, ErrNoTVFound
 }
 
-func pingWorker(ips []net.IP, results []bool, wg *sync.WaitGroup) {
-	for i, v := range ips {
-		result, err := pingIP(v)
-		if err != nil || !result {
-			results[i] = false
-		} else {
-			results[i] = true
-		}
-	}
-
-	wg.Done()
-}
-
 func pingIP(ip net.IP) (bool, error) {
-	timeout := time.Duration(20 * time.Millisecond)
+	timeout := time.Duration(500 * time.Millisecond)
 	client := http.Client{
 		Timeout: timeout,
 	}
-
+	fmt.Printf("http://%v:%v", ip, openPort)
+	now := time.Now()
 	resp, _ := client.Get(fmt.Sprintf("http://%v:%v", ip, openPort))
 	if resp == nil {
 		return false, errNoResponse
 	}
+	fmt.Printf("%v", time.Since(now))
 
 	body, _ := ioutil.ReadAll(resp.Body)
 
@@ -97,7 +71,7 @@ func pingIP(ip net.IP) (bool, error) {
 		return false, nil
 	}
 
-	if string(node.Content) == "LG Smart TV" {
+	if string(node.Content) == "LG TV" {
 		return true, nil
 	}
 	return false, nil
