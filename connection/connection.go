@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -34,6 +35,7 @@ type Connection struct {
 	idLock        sync.Mutex
 	lastRequestID int
 	respChans     map[int]chan response
+	respPayloads  map[int]interface{}
 }
 
 // NewConnection creates a new web socket connection to the TV at the given IP address
@@ -53,6 +55,7 @@ func NewConnection(ip net.IP) (*Connection, error) {
 		sync.Mutex{},
 		0,
 		make(map[int]chan response),
+		make(map[int]interface{}),
 	}
 
 	go connection.respWorker()
@@ -102,7 +105,7 @@ func (c *Connection) Register(clientKey string) (string, error) {
 			return "", ErrRegisterTimeout
 		case resp := <-respChan:
 			if resp.Type == respTypeRegistered {
-				return resp.Payload.(registerRespPayload).ClientKey, nil
+				return resp.Payload.(*registerRespPayload).ClientKey, nil
 			} else if resp.Type == respTypeError {
 				return "", errors.New(resp.Error)
 			}
@@ -111,13 +114,17 @@ func (c *Connection) Register(clientKey string) (string, error) {
 }
 
 // Request makes a request to the TV to perform an action
-func (c *Connection) Request(uri string) error {
+func (c *Connection) Request(uri string, reqPayload interface{}, respPayload interface{}) error {
 	// Create the request
 	requestID := c.getID()
 	request := request{
 		ID:   requestID,
 		Type: reqTypeRequest,
 		URI:  uri,
+	}
+
+	if reqPayload != nil {
+		request.Payload = reqPayload
 	}
 
 	// Marshal the request
@@ -130,6 +137,12 @@ func (c *Connection) Request(uri string) error {
 	respChan := c.addRespChannel(requestID)
 	defer c.removeRespChan(requestID)
 
+	// Add the response payload to the map of response payloads if one has been provided
+	if respPayload != nil {
+		c.respPayloads[requestID] = respPayload
+		defer delete(c.respPayloads, requestID)
+	}
+
 	// Send the message to the websocket
 	err = c.conn.WriteMessage(websocket.TextMessage, message)
 	if err != nil {
@@ -140,8 +153,6 @@ func (c *Connection) Request(uri string) error {
 	resp := <-respChan
 	if resp.Error != "" {
 		return errors.New(resp.Error)
-	} else if !resp.Payload.(responsePayload).ReturnValue {
-		return ErrFailResponse
 	}
 
 	return nil
@@ -175,8 +186,20 @@ func (c *Connection) respWorker() {
 			continue
 		}
 
+		// Get the ID of the response
+		respID, err := getRespID(message)
+		if err != nil {
+			continue
+		}
+
 		// Unmarshal the response
-		resp, err := unmarshalResponse(message)
+		var payload interface{}
+		if val, ok := c.respPayloads[respID]; ok {
+			payload = val
+		} else {
+			payload = &responsePayload{}
+		}
+		resp, err := unmarshalResponse(message, payload)
 		if err != nil {
 			continue
 		}
@@ -196,7 +219,7 @@ func (c *Connection) getID() int {
 	return c.lastRequestID
 }
 
-func unmarshalResponse(message []byte) (response, error) {
+func unmarshalResponse(message []byte, respPayload interface{}) (response, error) {
 	// Unmarshal the common properties first
 	var resp response
 	err := json.Unmarshal(message, &resp)
@@ -212,24 +235,31 @@ func unmarshalResponse(message []byte) (response, error) {
 	}
 
 	// Unmarshal the payload based on the type of the response
+	var payload interface{}
 	if resp.Type == respTypeResponse {
-		var payload responsePayload
-		err = json.Unmarshal(*propertyMap["payload"], &payload)
-		resp.Payload = payload
-		return resp, err
+		// If this is a "response" type, then use the provided payload pointer
+		payload = respPayload
 	} else if resp.Type == respTypeRegistered {
-		var payload registerRespPayload
-		err = json.Unmarshal(*propertyMap["payload"], &payload)
-		resp.Payload = payload
-		return resp, err
+		payload = &registerRespPayload{}
 	} else if resp.Type == respTypeError {
-		var payload emptyPayload
-		err = json.Unmarshal(*propertyMap["payload"], &payload)
-		resp.Payload = payload
-		return resp, err
+		payload = &emptyPayload{}
+	} else {
+		return response{}, errUnknownResponseType
 	}
 
-	return response{}, errUnknownResponseType
+	err = json.Unmarshal(*propertyMap["payload"], payload)
+	resp.Payload = payload
+	return resp, err
+}
+
+func getRespID(message []byte) (int, error) {
+	var propertyMap map[string]*json.RawMessage
+	err := json.Unmarshal(message, &propertyMap)
+	if err != nil {
+		return 0, err
+	}
+
+	return strconv.Atoi(string(*propertyMap["id"]))
 }
 
 func getPermissions() []string {
@@ -237,5 +267,7 @@ func getPermissions() []string {
 		permissionLaunch,
 		permissionControlAudio,
 		permissionControlPower,
+		permissionControlInputTv,
+		permissionReadChannelList,
 	}
 }
