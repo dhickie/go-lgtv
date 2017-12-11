@@ -13,12 +13,13 @@ func main() {
 	// 	fmt.Println(err)
 	// }
 	tv := control.NewTV(net.IP{192, 168, 1, 129})
-	_, err := tv.Connect("45d55ed2e385752d6f6a86178d50a682")
+	_, err := tv.Connect("7668cb15d16a1a319f3731a9264b700b")
 	if err != nil {
 		fmt.Println(err)
 	}
-	err = tv.GetChannelList()
+	list, err := tv.GetChannelProgramList()
 	if err != nil {
 		fmt.Println(err)
 	}
+	list = list
 }

@@ -14,11 +14,13 @@ const (
 	uriRewind      = "ssap://media.controls/rewind"
 	uriFastForward = "ssap://media.controls/fastForward"
 
-	uriChannelUp      = "ssap://tv/channelUp"
-	uriChannelDown    = "ssap://tv/channelDown"
-	uriSetChannel     = "ssap://tv/openChannel"
-	uriSwitchInput    = "ssap://tv/switchInput"
-	uriGetChannelList = "ssap://tv/getChannelList"
+	uriChannelUp             = "ssap://tv/channelUp"
+	uriChannelDown           = "ssap://tv/channelDown"
+	uriSetChannel            = "ssap://tv/openChannel"
+	uriSwitchInput           = "ssap://tv/switchInput"
+	uriGetChannelList        = "ssap://tv/getChannelList"
+	uriGetCurrentChannel     = "ssap://tv/getCurrentChannel"
+	uriGetChannelProgramInfo = "ssap://tv/getChannelProgramInfo"
 
 	uriTurnOff = "ssap://system/turnOff"
 )

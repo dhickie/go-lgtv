@@ -2,8 +2,11 @@ package control
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/dhickie/go-lgtv/connection"
 )
@@ -60,7 +63,7 @@ func (tv *LgTv) SetVolume(value int) error {
 
 // GetVolume returns the current volume of the TV
 func (tv *LgTv) GetVolume() (int, error) {
-	respPayload := connection.GetVolumeResponsePayload{}
+	var respPayload connection.GetVolumeResponsePayload
 	err := tv.doRequest(uriGetVolume, nil, &respPayload)
 	if err != nil {
 		return 0, err
@@ -79,13 +82,9 @@ func (tv *LgTv) SetMute(isMute bool) error {
 
 // GetMute gets the mute status of the TV
 func (tv *LgTv) GetMute() (bool, error) {
-	respPayload := connection.GetMuteResponsePayload{}
+	var respPayload connection.GetMuteResponsePayload
 	err := tv.doRequest(uriGetMute, nil, &respPayload)
-	if err != nil {
-		return false, err
-	}
-
-	return respPayload.Mute, nil
+	return respPayload.Mute, err
 }
 
 // Play plays the current media
@@ -131,8 +130,103 @@ func (tv *LgTv) SetChannel(channelNumber int) error {
 	return tv.doRequest(uriSetChannel, payload, nil)
 }
 
-func (tv *LgTv) GetChannelList() error {
-	return tv.doRequest(uriGetChannelList, nil, nil)
+// GetChannelList returns a slice of available TV channels
+func (tv *LgTv) GetChannelList() ([]Channel, error) {
+	var respPayload connection.GetChannelListResponsePayload
+	err := tv.doRequest(uriGetChannelList, nil, &respPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	channels := make([]Channel, len(respPayload.ChannelList))
+	for i, v := range respPayload.ChannelList {
+		channelNum, err := strconv.Atoi(v.ChannelNumber)
+		if err != nil {
+			return nil, err
+		}
+
+		channels[i] = Channel{
+			ChannelName:   v.ChannelName,
+			ChannelNumber: channelNum,
+			IsHdtv:        v.HDTV,
+			IsScrambled:   v.Scrambled,
+		}
+	}
+
+	return channels, nil
+}
+
+// GetCurrentChannel returns the channel the TV is currently set to
+func (tv *LgTv) GetCurrentChannel() (Channel, error) {
+	var respPayload connection.GetCurrentChannelResponsePayload
+	err := tv.doRequest(uriGetCurrentChannel, nil, &respPayload)
+	if err != nil {
+		return Channel{}, err
+	}
+
+	channelNum, err := strconv.Atoi(respPayload.ChannelNumber)
+	if err != nil {
+		return Channel{}, err
+	}
+
+	return Channel{
+		ChannelName:   respPayload.ChannelName,
+		ChannelNumber: channelNum,
+		IsHdtv:        false,
+		IsScrambled:   respPayload.IsScrambled,
+	}, nil
+}
+
+// GetChannelProgramList gets the list of programs broadcast on the current channel
+func (tv *LgTv) GetChannelProgramList() (ChannelProgramList, error) {
+	var respPayload connection.GetChannelProgramInfoResponsePayload
+	err := tv.doRequest(uriGetChannelProgramInfo, nil, &respPayload)
+	if err != nil {
+		return ChannelProgramList{}, err
+	}
+
+	channelNum, err := strconv.Atoi(respPayload.Channel.ChannelNumber)
+	if err != nil {
+		return ChannelProgramList{}, err
+	}
+
+	programList := ChannelProgramList{
+		Channel: Channel{
+			ChannelName:   respPayload.Channel.ChannelName,
+			ChannelNumber: channelNum,
+			IsHdtv:        respPayload.Channel.HDTV,
+			IsScrambled:   respPayload.Channel.Scrambled,
+		},
+		Programs: make([]Program, len(respPayload.ProgramList)),
+	}
+
+	for i, v := range respPayload.ProgramList {
+		duration, err := time.ParseDuration(fmt.Sprintf("%vs", v.Duration))
+		if err != nil {
+			return ChannelProgramList{}, err
+		}
+
+		stringTimes := []string{v.StartTime, v.EndTime}
+		times := make([]time.Time, 2)
+		for i, v := range stringTimes {
+			t, err := parseTime(v)
+			if err != nil {
+				return ChannelProgramList{}, err
+			}
+
+			times[i] = t
+		}
+
+		programList.Programs[i] = Program{
+			Name:      v.ProgramName,
+			Genre:     v.Genre,
+			StartTime: times[0],
+			EndTime:   times[1],
+			Duration:  duration,
+		}
+	}
+
+	return programList, nil
 }
 
 // SwitchInput switches the input of the TV to the one with the specified input ID
@@ -154,4 +248,34 @@ func (tv *LgTv) doRequest(uri string, reqPayload interface{}, respPayload interf
 	}
 
 	return ErrNotConnected
+}
+
+func parseTime(strTime string) (time.Time, error) {
+	loc, err := time.LoadLocation("UTC")
+
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	elements := strings.Split(strTime, ",")
+	intElements := make([]int, 6)
+
+	for i, v := range elements {
+		num, err := strconv.Atoi(v)
+		if err != nil {
+			return time.Time{}, err
+		}
+
+		intElements[i] = num
+	}
+
+	return time.Date(
+		intElements[0],
+		time.Month(intElements[1]),
+		intElements[2],
+		intElements[3],
+		intElements[4],
+		intElements[5],
+		0,
+		loc), nil
 }

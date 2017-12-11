@@ -269,5 +269,6 @@ func getPermissions() []string {
 		permissionControlPower,
 		permissionControlInputTv,
 		permissionReadChannelList,
+		permissionReadCurrentChannel,
 	}
 }

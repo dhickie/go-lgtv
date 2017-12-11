@@ -14,9 +14,10 @@ const (
 	pairTypePrompt = "PROMPT"
 
 	// Permissions
-	permissionLaunch          = "LAUNCH"
-	permissionControlAudio    = "CONTROL_AUDIO"
-	permissionControlPower    = "CONTROL_POWER"
-	permissionControlInputTv  = "CONTROL_INPUT_TV"
-	permissionReadChannelList = "READ_TV_CHANNEL_LIST"
+	permissionLaunch             = "LAUNCH"
+	permissionControlAudio       = "CONTROL_AUDIO"
+	permissionControlPower       = "CONTROL_POWER"
+	permissionControlInputTv     = "CONTROL_INPUT_TV"
+	permissionReadChannelList    = "READ_TV_CHANNEL_LIST"
+	permissionReadCurrentChannel = "READ_CURRENT_CHANNEL"
 )
