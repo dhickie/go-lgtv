@@ -16,6 +16,7 @@ import (
 const (
 	wsPort                 = 3000
 	registerTimeoutSeconds = 60
+	requestTimeoutSeconds  = 10
 )
 
 var (
@@ -26,6 +27,10 @@ var (
 	ErrRegisterTimeout = errors.New("Timeout waiting for registered response")
 	// ErrFailResponse is returned when the TV returns a fail response to a request
 	ErrFailResponse = errors.New("TV returned fail response to request")
+	// ErrRequestTimeout is returned when no response is recieved to a request before a timeout.
+	// Note that it can also be returned if we do get a response, but an error occurs processing it
+	// on our end.
+	ErrRequestTimeout = errors.New("Timeout waiting for response to request")
 )
 
 // Connection represents a web socket connection to the TV
@@ -149,10 +154,16 @@ func (c *Connection) Request(uri string, reqPayload interface{}, respPayload int
 		return err
 	}
 
-	// Wait for the response
-	resp := <-respChan
-	if resp.Error != "" {
-		return errors.New(resp.Error)
+	// Wait for the response (or timeout)
+	ticker := time.NewTicker(requestTimeoutSeconds * time.Second)
+	defer ticker.Stop()
+	select {
+	case <-ticker.C:
+		return ErrRequestTimeout
+	case resp := <-respChan:
+		if resp.Error != "" {
+			return errors.New(resp.Error)
+		}
 	}
 
 	return nil
