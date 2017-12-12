@@ -150,6 +150,7 @@ func (tv *LgTv) GetChannelList() ([]Channel, error) {
 			ChannelNumber: channelNum,
 			IsHdtv:        v.HDTV,
 			IsScrambled:   v.Scrambled,
+			tv:            tv,
 		}
 	}
 
@@ -174,6 +175,7 @@ func (tv *LgTv) GetCurrentChannel() (Channel, error) {
 		ChannelNumber: channelNum,
 		IsHdtv:        false,
 		IsScrambled:   respPayload.IsScrambled,
+		tv:            tv,
 	}, nil
 }
 
@@ -196,6 +198,7 @@ func (tv *LgTv) GetChannelProgramList() (ChannelProgramList, error) {
 			ChannelNumber: channelNum,
 			IsHdtv:        respPayload.Channel.HDTV,
 			IsScrambled:   respPayload.Channel.Scrambled,
+			tv:            tv,
 		},
 		Programs: make([]Program, len(respPayload.ProgramList)),
 	}
@@ -250,6 +253,7 @@ func (tv *LgTv) ListExternalInputs() ([]Input, error) {
 		inputs[i] = Input{
 			ID:    v.ID,
 			Label: v.Label,
+			tv:    tv,
 		}
 	}
 
@@ -269,6 +273,7 @@ func (tv *LgTv) ListInstalledApps() ([]App, error) {
 		apps[i] = App{
 			Name: v.Title,
 			ID:   v.ID,
+			tv:   tv,
 		}
 	}
 

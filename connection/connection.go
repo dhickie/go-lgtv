@@ -157,6 +157,7 @@ func (c *Connection) Request(uri string, reqPayload interface{}, respPayload int
 	// Wait for the response (or timeout)
 	ticker := time.NewTicker(requestTimeoutSeconds * time.Second)
 	defer ticker.Stop()
+
 	select {
 	case <-ticker.C:
 		return ErrRequestTimeout
