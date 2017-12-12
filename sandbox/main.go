@@ -17,9 +17,8 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	list, err := tv.GetChannelProgramList()
+	err = tv.SwitchInput("HDMI_2")
 	if err != nil {
 		fmt.Println(err)
 	}
-	list = list
 }

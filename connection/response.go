@@ -1,5 +1,9 @@
 package connection
 
+import (
+	"encoding/json"
+)
+
 // Represents a response from the Web OS made to a request
 type response struct {
 	ID      int         `json:"id"`
@@ -78,6 +82,121 @@ type GetChannelProgramInfoResponsePayload struct {
 	ReturnValue bool      `json:"returnValue"`
 	Channel     Channel   `json:"channel"`
 	ProgramList []Program `json:"programList"`
+}
+
+// GetInstalledAppsResponsePayload is the payload returned to "ListInstalledApps" requests
+type GetInstalledAppsResponsePayload struct {
+	ReturnValue bool  `json:"returnValue"`
+	Apps        []App `json:"apps"`
+}
+
+// LaunchAppResponsePayload is the payload returned to "LaunchApp" requests
+type LaunchAppResponsePayload struct {
+	ReturnValue bool   `json:"returnValue"`
+	ID          string `json:"id"`
+	SessionID   string `json:"sessionId"`
+}
+
+// GetExternalInputListResponsePayload is the payload returned to "ListExternalInputs" requests
+type GetExternalInputListResponsePayload struct {
+	ReturnValue bool     `json:"returnValue"`
+	Devices     []Device `json:"devices"`
+}
+
+// Device represents an external device inputs connected to the TV
+type Device struct {
+	ID           string   `json:"id"`
+	Label        string   `json:"label"`
+	Port         int      `json:"port"`
+	AppID        string   `json:"appId"`
+	Icon         string   `json:"icon"`
+	Modified     bool     `json:"modified"`
+	LastUniqueID int      `json:"lastUniqueId"`
+	SubList      []string `json:"subList"`
+	SubCount     int      `json:"subCount"`
+	Connected    bool     `json:"connected"`
+	Favorite     bool     `json:"favorite"`
+}
+
+// App represents an App on the TV
+type App struct {
+	DefaultWindowType          string            `json:"defaultWindowType"`
+	InstalledTime              int               `json:"installedTime"`
+	BgImages                   []string          `json:"bgImages"`
+	UIRevision                 json.RawMessage   `json:"uiRevision"` // Some apps report this as a string, some as a number
+	CPApp                      bool              `json:"CPApp"`
+	Version                    string            `json:"version"`
+	SystemApp                  bool              `json:"systemApp"`
+	AppSize                    int               `json:"appsize"`
+	Vendor                     string            `json:"vendor"`
+	MiniIcon                   string            `json:"miniicon"`
+	HasPromotion               bool              `json:"hasPromotion"`
+	TileSize                   string            `json:"tileSize"`
+	Icons                      []string          `json:"icons"`
+	RequestedWindowOrientation string            `json:"requestedWindowOrientation"`
+	LargeIcon                  string            `json:"largeIcon"`
+	Lockable                   bool              `json:"lockable"`
+	Transparent                bool              `json:"transparent"`
+	Icon                       string            `json:"icon"`
+	CheckUpdateOnLaunch        bool              `json:"checkUpdateOnLaunch"`
+	Category                   string            `json:"category"`
+	LaunchInNewGroup           bool              `json:"launchinnewgroup"`
+	SpinnerOnLaunch            bool              `json:"spinnerOnLaunch"`
+	HandlesRelaunch            bool              `json:"handlesRelaunch"`
+	UnMovable                  bool              `json:"unmovable"`
+	ID                         string            `json:"id"`
+	Inspectable                bool              `json:"inspectable"`
+	InAppSetting               bool              `json:"inAppSetting"`
+	PriviledgedJail            bool              `json:"privilegedJail"`
+	SupportQuickStart          bool              `json:"supportQuickStart"`
+	Title                      string            `json:"title"`
+	SplashBackground           string            `json:"splashBackground"`
+	TrustLevel                 string            `json:"trustLevel"`
+	BootLaunchParams           BootLaunchParams  `json:"bootLaunchParams"`
+	HardwareFeaturesNeeded     []string          `json:"hardwareFeaturesNeeded"`
+	Visible                    bool              `json:"visible"`
+	NoWindow                   bool              `json:"noWindow"`
+	Age                        int               `json:"age"`
+	WindowGroup                WindowGroup       `json:"windowGroup"`
+	Accessibility              AccessibilityInfo `json:"accessibility"`
+	FolderPath                 string            `json:"folderPath"`
+	DeepLinkingParams          string            `json:"deeplinkingParams"`
+	Main                       string            `json:"main"`
+	Removable                  bool              `json:"removable"`
+	Type                       string            `json:"type"`
+	BgImage                    string            `json:"bgImage"`
+	IconColor                  string            `json:"iconColor"`
+	DisableBackHistoryAPI      bool              `json:"disableBackHistoryAPI"`
+	NoSplashOnLaunch           bool              `json:"noSplashOnLaunch"`
+}
+
+// BootLaunchParams represents the parameters relating to launching the app on TV boot
+type BootLaunchParams struct {
+	Boot bool `json:"boot"`
+}
+
+// WindowGroup represents something to do with windows
+type WindowGroup struct {
+	Owner     bool            `json:"owner"`
+	OwnerInfo WindowOwnerInfo `json:"ownerInfo"`
+	Name      string          `json:"name"`
+}
+
+// WindowOwnerInfo represents something to do with owners of windows
+type WindowOwnerInfo struct {
+	AllowAnonymous bool                   `json:"allowAnonymous"`
+	Layers         []WindowOwnerInfoLayer `json:"layers"`
+}
+
+// WindowOwnerInfoLayer represents something to do with layers in the window owner... or something
+type WindowOwnerInfoLayer struct {
+	Z    int    `json:"z"`
+	Name string `json:"name"`
+}
+
+// AccessibilityInfo represents accessibility options supported by an App
+type AccessibilityInfo struct {
+	SupportsAudioGuidance bool `json:"supportsAudioGuidance"`
 }
 
 // Program represents a program on TV

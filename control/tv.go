@@ -237,6 +237,59 @@ func (tv *LgTv) SwitchInput(inputID string) error {
 	return tv.doRequest(uriSwitchInput, payload, nil)
 }
 
+// ListExternalInputs lists the external input devices for the TV
+func (tv *LgTv) ListExternalInputs() ([]Input, error) {
+	var respPayload connection.GetExternalInputListResponsePayload
+	err := tv.doRequest(uriGetExternalInputList, nil, &respPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	inputs := make([]Input, len(respPayload.Devices))
+	for i, v := range respPayload.Devices {
+		inputs[i] = Input{
+			ID:    v.ID,
+			Label: v.Label,
+		}
+	}
+
+	return inputs, nil
+}
+
+// ListInstalledApps lists the apps currently installed on the TV
+func (tv *LgTv) ListInstalledApps() ([]App, error) {
+	var respPayload connection.GetInstalledAppsResponsePayload
+	err := tv.doRequest(uriListApps, nil, &respPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	apps := make([]App, len(respPayload.Apps))
+	for i, v := range respPayload.Apps {
+		apps[i] = App{
+			Name: v.Title,
+			ID:   v.ID,
+		}
+	}
+
+	return apps, nil
+}
+
+// LaunchApp launches the app with the provided ID. If successfully launched,
+// it returns the ID of the new session
+func (tv *LgTv) LaunchApp(appID string) (string, error) {
+	payload := connection.LaunchAppPayload{
+		ID: appID,
+	}
+	var respPayload connection.LaunchAppResponsePayload
+	err := tv.doRequest(uriLaunchApp, payload, &respPayload)
+	if err != nil {
+		return "", err
+	}
+
+	return respPayload.SessionID, nil
+}
+
 // TurnOff turns the tv off
 func (tv *LgTv) TurnOff() error {
 	return tv.doRequest(uriTurnOff, nil, nil)

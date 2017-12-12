@@ -18,9 +18,14 @@ const (
 	uriChannelDown           = "ssap://tv/channelDown"
 	uriSetChannel            = "ssap://tv/openChannel"
 	uriSwitchInput           = "ssap://tv/switchInput"
+	uriGetExternalInputList  = "ssap://tv/getExternalInputList"
 	uriGetChannelList        = "ssap://tv/getChannelList"
 	uriGetCurrentChannel     = "ssap://tv/getCurrentChannel"
 	uriGetChannelProgramInfo = "ssap://tv/getChannelProgramInfo"
+
+	uriListApps = "ssap://com.webos.applicationManager/listApps"
+
+	uriLaunchApp = "ssap://system.launcher/launch"
 
 	uriTurnOff = "ssap://system/turnOff"
 )

@@ -43,3 +43,10 @@ type SetChannelPayload struct {
 type SwitchInputPayload struct {
 	InputID string `json:"inputId"`
 }
+
+// LaunchAppPayload is the payload send with a "LaunchApp" request
+type LaunchAppPayload struct {
+	ID         string      `json:"id"`
+	ContentID  string      `json:"contentId"`
+	Parameters interface{} `json:"params"`
+}

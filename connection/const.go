@@ -20,4 +20,7 @@ const (
 	permissionControlInputTv     = "CONTROL_INPUT_TV"
 	permissionReadChannelList    = "READ_TV_CHANNEL_LIST"
 	permissionReadCurrentChannel = "READ_CURRENT_CHANNEL"
+	permissionReadRunningApps    = "READ_RUNNING_APPS"
+	permissionReadInstalledApps  = "READ_INSTALLED_APPS"
+	permissionReadInputList      = "READ_INPUT_DEVICE_LIST"
 )

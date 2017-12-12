@@ -24,3 +24,15 @@ type Program struct {
 	EndTime   time.Time
 	Duration  time.Duration
 }
+
+// App represents an app on the TV
+type App struct {
+	Name string
+	ID   string
+}
+
+// Input represents an external input to the TV
+type Input struct {
+	Label string
+	ID    string
+}
