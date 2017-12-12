@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dhickie/go-lgtv/connection"
+	iputil "github.com/dhickie/go-lgtv/util/ip"
 )
 
 // ErrNotConnected is returned if an request is attempted to a TV which is not connected to the client
@@ -21,9 +22,10 @@ type LgTv struct {
 	isConnected bool
 }
 
-// NewTV returns a new LgTv object with the specified IP and pin
-func NewTV(ip net.IP) LgTv {
-	return LgTv{ip, nil, false}
+// NewTV returns a new LgTv object with the specified IP address
+func NewTV(ip string) (LgTv, error) {
+	ipAdr, err := iputil.ParseIP(ip)
+	return LgTv{ipAdr, nil, false}, err
 }
 
 // Connect connects to the tv using the provided client key. If an empty client key
@@ -41,6 +43,12 @@ func (tv *LgTv) Connect(clientKey string) (string, error) {
 	}
 
 	return clientKey, err
+}
+
+// Disconnect disconnects from the TV
+func (tv *LgTv) Disconnect() error {
+	tv.isConnected = false
+	return tv.conn.Close()
 }
 
 // VolumeUp increases the volume by 1
@@ -130,8 +138,8 @@ func (tv *LgTv) SetChannel(channelNumber int) error {
 	return tv.doRequest(uriSetChannel, payload, nil)
 }
 
-// GetChannelList returns a slice of available TV channels
-func (tv *LgTv) GetChannelList() ([]Channel, error) {
+// ListChannels returns a slice of available TV channels
+func (tv *LgTv) ListChannels() ([]Channel, error) {
 	var respPayload connection.GetChannelListResponsePayload
 	err := tv.doRequest(uriGetChannelList, nil, &respPayload)
 	if err != nil {
