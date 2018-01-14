@@ -279,6 +279,7 @@ func getPermissions() []string {
 		permissionLaunch,
 		permissionControlAudio,
 		permissionControlPower,
+		permissionControlPlayback,
 		permissionControlInputTv,
 		permissionReadChannelList,
 		permissionReadCurrentChannel,

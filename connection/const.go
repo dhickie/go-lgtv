@@ -18,6 +18,7 @@ const (
 	permissionControlAudio       = "CONTROL_AUDIO"
 	permissionControlPower       = "CONTROL_POWER"
 	permissionControlInputTv     = "CONTROL_INPUT_TV"
+	permissionControlPlayback    = "CONTROL_INPUT_MEDIA_PLAYBACK"
 	permissionReadChannelList    = "READ_TV_CHANNEL_LIST"
 	permissionReadCurrentChannel = "READ_CURRENT_CHANNEL"
 	permissionReadRunningApps    = "READ_RUNNING_APPS"
