@@ -362,7 +362,7 @@ func (tv *LgTv) TurnOn() error {
 }
 
 func (tv *LgTv) doRequest(uri string, reqPayload interface{}, respPayload interface{}) error {
-	if tv.isConnected {
+	if tv.IsConnected {
 		return tv.conn.Request(uri, reqPayload, respPayload)
 	}
 
