@@ -27,11 +27,11 @@ var (
 // of the TV. gatewayIP is the IP address of the default gateway on the local network.
 //
 // This has only been tested using the C7V 2017 model.
-func Discover(gatewayIP string) (control.LgTv, error) {
+func Discover(gatewayIP string) (*control.LgTv, error) {
 	// Convert the provided string in to an IP address
 	gwIP, err := iputil.ParseIP(gatewayIP)
 	if err != nil {
-		return control.LgTv{}, err
+		return nil, err
 	}
 
 	// Iterate over all possible local IP addresses (based on a single gateway setup
@@ -39,11 +39,11 @@ func Discover(gatewayIP string) (control.LgTv, error) {
 		gwIP[3] = byte(i)
 		found, _ := pingIP(gwIP)
 		if found {
-			return control.NewTV(gwIP), nil
+			return control.NewTV(string(gwIP), "", "")
 		}
 	}
 
-	return control.LgTv{}, ErrNoTVFound
+	return nil, ErrNoTVFound
 }
 
 func pingIP(ip net.IP) (bool, error) {
@@ -52,12 +52,10 @@ func pingIP(ip net.IP) (bool, error) {
 		Timeout: timeout,
 	}
 	fmt.Printf("http://%v:%v", ip, openPort)
-	now := time.Now()
 	resp, _ := client.Get(fmt.Sprintf("http://%v:%v", ip, openPort))
 	if resp == nil {
 		return false, errNoResponse
 	}
-	fmt.Printf("%v", time.Since(now))
 
 	body, _ := ioutil.ReadAll(resp.Body)
 

@@ -27,7 +27,10 @@ func main() {
 	tv, err := discovery.Discover("192.168.1.1")
 
 	// Or if you already know the IP address of your TV, create an instance of it directly
-	tv, err = control.NewTV("192.168.1.129")
+	tv, err = control.NewTV("192.168.1.129", "", "")
+
+	// In order to use the TurnOn functionality, the TVs MAC address and the subnet mask of the local network must also be supplied
+	tv, err = control.NewTV("192.168.1.129", "38:8C:50:6B:CD:B1", "255.255.255.0")
 
 	// If you don't already have a client key, connect to it with an empty key and it will create a new one.
 	// This call will block until the request to connect has been accepted on the TV
@@ -40,7 +43,7 @@ func main() {
 	err = tv.Play()
 	err = tv.SetChannel(1)
 	err = tv.SetVolume(30)
-	err = tv.LaunchApp("netflix")
+	_, err = tv.LaunchApp("netflix")
 	err = tv.SwitchInput("HDMI_1")
 
 	// Various things can be queried from the TV like getting a list of channels, installed apps, external inputs etc.
@@ -50,13 +53,17 @@ func main() {
 
 	// You can switch to a certain channel/input/app directly from that object
 	err = channels[0].Watch()
-	err = apps[0].Launch()
+	_, err = apps[0].Launch()
 	err = inputs[0].Switch()
 
 	// Disconnect from the TV once you're done with it
 	err = tv.Disconnect()
 }
 ```
+
+## A note on `TurnOn()`
+
+This package uses Wake-On-LAN functionality to turn the TV on, as the normal networking stack is shut down when WebOS TVs are put in to standby. For this to work, the TV must be connected to the local network over ethernet (*not* Wifi) and WOL must be enabled in the TV's settings.
 
 ## A note on discovery
 
@@ -67,11 +74,22 @@ Also note that this method makes a couple of assumptions:
 * There is only one TV on the network that would respond to this request (it will return the first one found)
 * Your local network is a simple 256 address network with a single gateway like a router
 
+UPDATE:
+As of V1.1, it appears discovery seems to be completely broken. I need to redo it before it will be in a usable state.
+
 ## Dependencies
 
-This package uses Gorilla's websocket implementation (https://github.com/gorilla/websocket) for the underlying websocket management. Everything else used is standard.
+This package uses Gorilla's websocket implementation (https://github.com/gorilla/websocket) for the underlying websocket management. It also uses ghthor's Wake-On-LAN package (https://github.com/ghthor/gowol) for WOL functionality. Everything else used is standard.
 
 ## Release notes
+
+**V1.1**
+
+- Added the ability to use Wake-On-LAN to turn on the TV using the `TurnOn()` function.
+
+**V1.0.1**
+
+- Added a missing permission in order to be able to use media control.
 
 **V1.0**
 

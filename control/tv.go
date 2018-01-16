@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ghthor/gowol"
+
 	"github.com/dhickie/go-lgtv/connection"
 	iputil "github.com/dhickie/go-lgtv/util/ip"
 )
@@ -15,17 +17,42 @@ import (
 // ErrNotConnected is returned if an request is attempted to a TV which is not connected to the client
 var ErrNotConnected = errors.New("Client is not connected to TV")
 
+// ErrInsufficientNetworkDetails is returned if an attempt is made to turn on a tv without providing a mac address and subnet mask
+var ErrInsufficientNetworkDetails = errors.New("Insufficient network information was supplied to use this function")
+
 // LgTv represents the TV being controlled
 type LgTv struct {
-	ip          net.IP
-	conn        *connection.Connection
-	isConnected bool
+	ip            net.IP
+	mac           string
+	broadcastAddr net.IP
+	conn          *connection.Connection
+	isConnected   bool
 }
 
 // NewTV returns a new LgTv object with the specified IP address
-func NewTV(ip string) (LgTv, error) {
+func NewTV(ip, macAddress, subnet string) (*LgTv, error) {
 	ipAdr, err := iputil.ParseIP(ip)
-	return LgTv{ipAdr, nil, false}, err
+	if err != nil {
+		return nil, err
+	}
+
+	broadcastAddress := net.IP{}
+	if subnet != "" {
+		parsedSubnet, err := iputil.ParseIP(subnet)
+		if err != nil {
+			return nil, err
+		}
+
+		broadcastAddress = calculateBroadcastAddress(ipAdr, parsedSubnet)
+	}
+
+	return &LgTv{
+		ip:            ipAdr,
+		mac:           macAddress,
+		broadcastAddr: broadcastAddress,
+		conn:          nil,
+		isConnected:   false,
+	}, err
 }
 
 // Connect connects to the tv using the provided client key. If an empty client key
@@ -308,6 +335,18 @@ func (tv *LgTv) TurnOff() error {
 	return tv.doRequest(uriTurnOff, nil, nil)
 }
 
+// TurnOn turns the tv on. Note that it uses Wake-On-Lan to wake the TV, so this only works
+// if the TV is plugged in via ethernet
+func (tv *LgTv) TurnOn() error {
+	// Make sure the TV has the MAC address and broadcast address specified
+	if len(tv.broadcastAddr) > 0 && tv.mac != "" {
+		// Send the WOL magic packet for the TV's mac address to the LANs broadcast address
+		return wol.MagicWake(tv.mac, tv.broadcastAddr.String())
+	}
+
+	return ErrInsufficientNetworkDetails
+}
+
 func (tv *LgTv) doRequest(uri string, reqPayload interface{}, respPayload interface{}) error {
 	if tv.isConnected {
 		return tv.conn.Request(uri, reqPayload, respPayload)
@@ -344,4 +383,13 @@ func parseTime(strTime string) (time.Time, error) {
 		intElements[5],
 		0,
 		loc), nil
+}
+
+func calculateBroadcastAddress(ip, subnet net.IP) net.IP {
+	broadcastAddress := net.IP{0, 0, 0, 0}
+	for i := 0; i < 4; i++ {
+		broadcastAddress[i] = (ip[i] & subnet[i]) | ^subnet[i]
+	}
+
+	return broadcastAddress
 }
