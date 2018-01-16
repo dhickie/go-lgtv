@@ -31,6 +31,8 @@ var (
 	// Note that it can also be returned if we do get a response, but an error occurs processing it
 	// on our end.
 	ErrRequestTimeout = errors.New("Timeout waiting for response to request")
+	// ErrConnectionTimeout is returned when we fail to open the websocket connection before the timeout
+	ErrConnectionTimeout = errors.New("Failed to connect to TV's websocket connection before timeout")
 )
 
 // Connection represents a web socket connection to the TV
@@ -43,29 +45,44 @@ type Connection struct {
 	respPayloads  map[int]interface{}
 }
 
-// NewConnection creates a new web socket connection to the TV at the given IP address
-func NewConnection(ip net.IP) (*Connection, error) {
+// NewConnection creates a new web socket connection to the TV at the given IP address. The timeout is in milliseconds.
+func NewConnection(ip net.IP, timeout int) (*Connection, error) {
 	url := fmt.Sprintf("ws://%v:%v", ip, wsPort)
 
-	// Dial the websocket connection
-	c, _, err := websocket.DefaultDialer.Dial(url, nil)
-	if err != nil {
+	// Dial the websocket connection, with a timeout
+	conChan := make(chan *websocket.Conn)
+	errChan := make(chan error)
+	go func(url string) {
+		c, _, err := websocket.DefaultDialer.Dial(url, nil)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		conChan <- c
+	}(url)
+
+	ticker := time.NewTicker(time.Duration(timeout) * time.Millisecond)
+	select {
+	case <-ticker.C:
+		return nil, ErrConnectionTimeout
+	case err := <-errChan:
 		return nil, err
+	case c := <-conChan:
+		// Set the routine going to get responses
+		connOpen := true
+		connection := &Connection{c,
+			&connOpen,
+			sync.Mutex{},
+			0,
+			make(map[int]chan response),
+			make(map[int]interface{}),
+		}
+
+		go connection.respWorker()
+
+		return connection, nil
 	}
-
-	// Set the routine going to get responses
-	connOpen := true
-	connection := &Connection{c,
-		&connOpen,
-		sync.Mutex{},
-		0,
-		make(map[int]chan response),
-		make(map[int]interface{}),
-	}
-
-	go connection.respWorker()
-
-	return connection, nil
 }
 
 // Register registers with the TV using the provided client key.

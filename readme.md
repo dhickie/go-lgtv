@@ -33,11 +33,15 @@ func main() {
 	tv, err = control.NewTV("192.168.1.129", "38:8C:50:6B:CD:B1", "255.255.255.0")
 
 	// If you don't already have a client key, connect to it with an empty key and it will create a new one.
-	// This call will block until the request to connect has been accepted on the TV
-	clientKey, err := tv.Connect("")
+	// This call will block until the request to connect has been accepted on the TV.
+	// The timeout value is in milliseconds.
+	clientKey, err := tv.Connect("", 1000)
 
 	// Or if you already have a client key from before, you can specify it to connect immediately
-	_, err = tv.Connect("7668cb15d16a1a319f3731a9264b700b")
+	_, err = tv.Connect("7668cb15d16a1a319f3731a9264b700b", 1000)
+
+	// TurnOn uses WOL, and so relies on the TV being connected using ethernet
+	err = tv.TurnOn()
 
 	// Once connected, you can perform operations like play, pause, launch an app etc.
 	err = tv.Play()
@@ -82,6 +86,12 @@ As of V1.1, it appears discovery seems to be completely broken. I need to redo i
 This package uses Gorilla's websocket implementation (https://github.com/gorilla/websocket) for the underlying websocket management. It also uses ghthor's Wake-On-LAN package (https://github.com/ghthor/gowol) for WOL functionality. Everything else used is standard.
 
 ## Release notes
+
+**V1.1.1**
+
+- Made `IsConnected` publically available.
+- Made `ClientKey` publically available.
+- Made `Connect()` threadsafe.
 
 **V1.1**
 

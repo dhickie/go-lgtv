@@ -6,6 +6,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ghthor/gowol"
@@ -26,7 +27,9 @@ type LgTv struct {
 	mac           string
 	broadcastAddr net.IP
 	conn          *connection.Connection
-	isConnected   bool
+	connLock      *sync.Mutex
+	ClientKey     string
+	IsConnected   bool
 }
 
 // NewTV returns a new LgTv object with the specified IP address
@@ -51,30 +54,41 @@ func NewTV(ip, macAddress, subnet string) (*LgTv, error) {
 		mac:           macAddress,
 		broadcastAddr: broadcastAddress,
 		conn:          nil,
-		isConnected:   false,
+		connLock:      new(sync.Mutex),
+		IsConnected:   false,
 	}, err
 }
 
 // Connect connects to the tv using the provided client key. If an empty client key
 // is provided, a new one will be provisioned
-func (tv *LgTv) Connect(clientKey string) (string, error) {
-	conn, err := connection.NewConnection(tv.ip)
-	if err != nil {
-		return "", err
+func (tv *LgTv) Connect(clientKey string, timeout int) (string, error) {
+	// Only one thread should be allowed to try and connect at the same time
+	if !tv.IsConnected {
+		tv.connLock.Lock()
+		defer tv.connLock.Unlock()
+		if !tv.IsConnected {
+			conn, err := connection.NewConnection(tv.ip, timeout)
+			if err != nil {
+				return "", err
+			}
+
+			tv.conn = conn
+			clientKey, err = tv.conn.Register(clientKey)
+			if err == nil {
+				tv.IsConnected = true
+				tv.ClientKey = clientKey
+			}
+
+			return clientKey, err
+		}
 	}
 
-	tv.conn = conn
-	clientKey, err = tv.conn.Register(clientKey)
-	if err == nil {
-		tv.isConnected = true
-	}
-
-	return clientKey, err
+	return tv.ClientKey, nil
 }
 
 // Disconnect disconnects from the TV
 func (tv *LgTv) Disconnect() error {
-	tv.isConnected = false
+	tv.IsConnected = false
 	return tv.conn.Close()
 }
 
