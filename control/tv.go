@@ -61,10 +61,10 @@ func NewTV(ip, macAddress, subnet string) (*LgTv, error) {
 // is provided, a new one will be provisioned
 func (tv *LgTv) Connect(clientKey string, timeout int) (string, error) {
 	// Only one thread should be allowed to try and connect at the same time
-	if !tv.conn.IsOpen() {
+	if !tv.connectionOpen() {
 		tv.connLock.Lock()
 		defer tv.connLock.Unlock()
-		if !tv.conn.IsOpen() {
+		if !tv.connectionOpen() {
 			conn := connection.NewConnection(tv.ip)
 
 			// Open the connection
@@ -366,6 +366,14 @@ func (tv *LgTv) doRequest(uri string, reqPayload interface{}, respPayload interf
 	}
 
 	return ErrNotConnected
+}
+
+func (tv *LgTv) connectionOpen() bool {
+	if tv.conn == nil || !tv.conn.IsOpen() {
+		return false
+	}
+
+	return true
 }
 
 func parseTime(strTime string) (time.Time, error) {
