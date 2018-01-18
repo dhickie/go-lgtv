@@ -37,18 +37,31 @@ var (
 
 // Connection represents a web socket connection to the TV
 type Connection struct {
+	url           string
 	conn          *websocket.Conn
-	connOpen      *bool
-	idLock        sync.Mutex
+	connOpen      bool
+	idLock        *sync.Mutex
 	lastRequestID int
 	respChans     map[int]chan response
 	respPayloads  map[int]interface{}
 }
 
 // NewConnection creates a new web socket connection to the TV at the given IP address. The timeout is in milliseconds.
-func NewConnection(ip net.IP, timeout int) (*Connection, error) {
+func NewConnection(ip net.IP) *Connection {
 	url := fmt.Sprintf("ws://%v:%v", ip, wsPort)
 
+	return &Connection{
+		url:           url,
+		idLock:        new(sync.Mutex),
+		connOpen:      false,
+		lastRequestID: 0,
+		respChans:     make(map[int]chan response),
+		respPayloads:  make(map[int]interface{}),
+	}
+}
+
+// Open opens the connection to the TV, and sets the response worker going
+func (c *Connection) Open(timeout int) error {
 	// Dial the websocket connection, with a timeout
 	conChan := make(chan *websocket.Conn)
 	errChan := make(chan error)
@@ -60,29 +73,29 @@ func NewConnection(ip net.IP, timeout int) (*Connection, error) {
 		}
 
 		conChan <- c
-	}(url)
+	}(c.url)
 
 	ticker := time.NewTicker(time.Duration(timeout) * time.Millisecond)
 	select {
 	case <-ticker.C:
-		return nil, ErrConnectionTimeout
+		return ErrConnectionTimeout
 	case err := <-errChan:
-		return nil, err
-	case c := <-conChan:
+		return err
+	case conn := <-conChan:
+		c.conn = conn
+		c.conn.SetCloseHandler(c.closeHandler)
+		c.connOpen = true
+
 		// Set the routine going to get responses
-		connOpen := true
-		connection := &Connection{c,
-			&connOpen,
-			sync.Mutex{},
-			0,
-			make(map[int]chan response),
-			make(map[int]interface{}),
-		}
+		go c.respWorker()
 
-		go connection.respWorker()
-
-		return connection, nil
+		return nil
 	}
+}
+
+// IsOpen returns whether or not the connection to the TV is currently open
+func (c *Connection) IsOpen() bool {
+	return c.connOpen
 }
 
 // Register registers with the TV using the provided client key.
@@ -189,7 +202,7 @@ func (c *Connection) Request(uri string, reqPayload interface{}, respPayload int
 
 // Close closes the connection to the TV
 func (c *Connection) Close() error {
-	*c.connOpen = false
+	c.connOpen = false
 	return c.conn.Close()
 }
 
@@ -208,11 +221,13 @@ func (c *Connection) removeRespChan(reqID int) {
 }
 
 func (c *Connection) respWorker() {
-	for *c.connOpen {
+	for c.connOpen {
 		// Read a message from the connection
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			continue
+			// Error messages are fatal, set the connection to closed and kill the worker
+			c.connOpen = false
+			return
 		}
 
 		// Get the ID of the response
@@ -238,6 +253,13 @@ func (c *Connection) respWorker() {
 			val <- resp
 		}
 	}
+}
+
+// closeHandler is called if the websocket connection receives a close message
+func (c *Connection) closeHandler(code int, text string) error {
+	// Set the connection as closed
+	c.connOpen = false
+	return nil
 }
 
 func (c *Connection) getID() int {

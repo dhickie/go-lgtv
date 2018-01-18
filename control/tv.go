@@ -29,7 +29,6 @@ type LgTv struct {
 	conn          *connection.Connection
 	connLock      *sync.Mutex
 	ClientKey     string
-	IsConnected   bool
 }
 
 // NewTV returns a new LgTv object with the specified IP address
@@ -55,7 +54,6 @@ func NewTV(ip, macAddress, subnet string) (*LgTv, error) {
 		broadcastAddr: broadcastAddress,
 		conn:          nil,
 		connLock:      new(sync.Mutex),
-		IsConnected:   false,
 	}, err
 }
 
@@ -63,11 +61,14 @@ func NewTV(ip, macAddress, subnet string) (*LgTv, error) {
 // is provided, a new one will be provisioned
 func (tv *LgTv) Connect(clientKey string, timeout int) (string, error) {
 	// Only one thread should be allowed to try and connect at the same time
-	if !tv.IsConnected {
+	if !tv.conn.IsOpen() {
 		tv.connLock.Lock()
 		defer tv.connLock.Unlock()
-		if !tv.IsConnected {
-			conn, err := connection.NewConnection(tv.ip, timeout)
+		if !tv.conn.IsOpen() {
+			conn := connection.NewConnection(tv.ip)
+
+			// Open the connection
+			err := conn.Open(timeout)
 			if err != nil {
 				return "", err
 			}
@@ -75,7 +76,6 @@ func (tv *LgTv) Connect(clientKey string, timeout int) (string, error) {
 			tv.conn = conn
 			clientKey, err = tv.conn.Register(clientKey)
 			if err == nil {
-				tv.IsConnected = true
 				tv.ClientKey = clientKey
 			}
 
@@ -88,7 +88,6 @@ func (tv *LgTv) Connect(clientKey string, timeout int) (string, error) {
 
 // Disconnect disconnects from the TV
 func (tv *LgTv) Disconnect() error {
-	tv.IsConnected = false
 	return tv.conn.Close()
 }
 
@@ -362,7 +361,7 @@ func (tv *LgTv) TurnOn() error {
 }
 
 func (tv *LgTv) doRequest(uri string, reqPayload interface{}, respPayload interface{}) error {
-	if tv.IsConnected {
+	if !tv.conn.IsOpen() {
 		return tv.conn.Request(uri, reqPayload, respPayload)
 	}
 
