@@ -28,4 +28,6 @@ const (
 	uriLaunchApp = "ssap://system.launcher/launch"
 
 	uriTurnOff = "ssap://system/turnOff"
+
+	uriPowerState = "ssap://com.webos.service.tvpower/power/getPowerState"
 )

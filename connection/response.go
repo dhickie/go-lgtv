@@ -315,3 +315,9 @@ type DualChannel struct {
 	DualChannelTypeID   string `json:"dualChannelTypeId"`
 	DualChannelNumber   string `json:"dualChannelNumber"`
 }
+
+// PowerStatus holds the state of the TV's power
+type PowerState struct {
+	ReturnValue bool   `json:"returnValue"`
+	State       string `json:"state"`
+}

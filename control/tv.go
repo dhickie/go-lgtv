@@ -344,9 +344,28 @@ func (tv *LgTv) LaunchApp(appID string) (string, error) {
 	return respPayload.SessionID, nil
 }
 
+// Get the TV Power state
+func (tv *LgTv) PowerState() (string, error) {
+	var respPayload connection.PowerState
+	err := tv.doRequest(uriPowerState, nil, &respPayload)
+	if err != nil {
+		return "", err
+	}
+
+	return respPayload.State, nil
+}
+
 // TurnOff turns the tv off
+// Modern OLED TVs may still be reachable over the network for a while
+// after turning off; it's goes to "Active Standby" mode.  In this state
+// this function actually turns the TV back on!  So we check the state
+// and only send an Off signal if the TV is currently Active
 func (tv *LgTv) TurnOff() error {
-	return tv.doRequest(uriTurnOff, nil, nil)
+	power, _ := tv.PowerState()
+	if power == "Active" {
+		return tv.doRequest(uriTurnOff, nil, nil)
+	}
+	return nil
 }
 
 // TurnOn turns the tv on. Note that it uses Wake-On-Lan to wake the TV, so this only works
